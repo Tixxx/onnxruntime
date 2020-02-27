@@ -30,6 +30,8 @@ limitations under the License.
 #include "core/platform/env.h"
 #include "core/platform/scoped_resource.h"
 #include "core/platform/windows/telemetry.h"
+#include "unsupported/Eigen/CXX11/src/ThreadPool/ThreadPoolInterface.h"
+
 
 namespace onnxruntime {
 
@@ -47,12 +49,59 @@ struct FileHandleTraits {
   }
 };
 
+// EnvThread constructor must start the thread,
+// destructor must join the thread.
+class WindowsThread : public EnvThread {
+ private:
+  struct Param {
+    int index;
+    unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param);
+    Eigen::ThreadPoolInterface* param;
+  };
+
+ public:
+  WindowsThread(int index, unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
+            Eigen::ThreadPoolInterface* param) {
+    hThread = (HANDLE)_beginthreadex(nullptr, 0, ThreadMain, new Param{index, start_address, param}, 0, &threadID);
+  }
+
+  ~WindowsThread() {
+    WaitForSingleObject(hThread, INFINITE);
+    CloseHandle(hThread);
+  }
+  // This function is called when the threadpool is cancelled.
+  void OnCancel() {}
+
+ private:
+  static unsigned __stdcall ThreadMain(void* param) {
+    Param* p = (Param*)param;
+    SetThreadAffinityMask(GetCurrentThread(), static_cast<DWORD_PTR>(1) << p->index);
+    unsigned ret = 0;
+    try {
+      ret = p->start_address(p->index, p->param);
+    } catch (std::exception&) {
+      p->param->Cancel();
+      ret = 1;
+    }
+    delete p;
+    return ret;
+  }
+  unsigned threadID;
+  HANDLE hThread;
+};
 // Note: File handle cleanup may fail but this class doesn't expose a way to check if it failed.
 //       If that's important, consider using another cleanup method.
 using ScopedFileHandle = ScopedResource<FileHandleTraits>;
 
 class WindowsEnv : public Env {
  public:
+  EnvThread* CreateThread(int index, unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
+                          Eigen::ThreadPoolInterface* param) {
+    return new WindowsThread(index, start_address, param);
+  }
+  Task CreateTask(std::function<void()> f) { return Task{std::move(f)}; }
+  void ExecuteTask(const Task& t) { t.f(); }
+
   void SleepForMicroseconds(int64_t micros) const override { Sleep(static_cast<DWORD>(micros) / 1000); }
 
   int GetNumCpuCores() const override {

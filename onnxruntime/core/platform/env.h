@@ -33,7 +33,9 @@ limitations under the License.
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-
+namespace Eigen {
+class ThreadPoolInterface;
+}
 namespace onnxruntime {
 
 #ifdef _WIN32
@@ -43,6 +45,15 @@ using FileOffsetType = int64_t;
 using PIDType = pid_t;
 using FileOffsetType = off_t;
 #endif
+
+
+class EnvThread {
+ public:
+  virtual void OnCancel() = 0;
+  virtual ~EnvThread() = default;
+};
+
+
 
 /// \brief An interface used by the onnxruntime implementation to
 /// access operating system functionality like the filesystem etc.
@@ -54,7 +65,16 @@ using FileOffsetType = off_t;
 /// multiple threads without any external synchronization.
 class Env {
  public:
+  struct Task {
+    std::function<void()> f;
+  };
+  using EnvThread = onnxruntime::EnvThread;
   virtual ~Env() = default;
+
+  virtual EnvThread* CreateThread(int index, unsigned (*start_address)(int id, Eigen::ThreadPoolInterface* param),
+                                  Eigen::ThreadPoolInterface* param) = 0;
+  virtual Task CreateTask(std::function<void()> f) = 0;
+  virtual void ExecuteTask(const Task& t) = 0;
 
   /// \brief Returns a default environment suitable for the current operating
   /// system.

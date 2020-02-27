@@ -32,10 +32,10 @@ ThreadPool::ThreadPool(Env* env, const std::string& name, int num_threads)
 ThreadPool::ThreadPool(Env* env, const ThreadOptions& thread_options, const std::string& name, int num_threads)
     : ThreadPool(env, thread_options, name, num_threads, true, nullptr) {}
 
-ThreadPool::ThreadPool(Env* /*env*/, const ThreadOptions& /*thread_options*/, const std::string& /*name*/, int num_threads, bool low_latency_hint, Eigen::Allocator* allocator)
-    : eigen_thread_env_() {
+ThreadPool::ThreadPool(Env* env, const ThreadOptions& /*thread_options*/, const std::string& /*name*/, int num_threads, bool low_latency_hint, Eigen::Allocator* allocator)
+    {
   ORT_ENFORCE(num_threads>= 1);
-  eigen_threadpool_.reset(new ThreadPoolTempl<EigenEnvironment>(num_threads, low_latency_hint, eigen_thread_env_));
+  eigen_threadpool_.reset(new ThreadPoolTempl<Env>(num_threads, low_latency_hint, *env));
   underlying_threadpool_ = eigen_threadpool_.get();
   threadpool_device_.reset(new Eigen::ThreadPoolDevice(underlying_threadpool_, num_threads, allocator));
 }

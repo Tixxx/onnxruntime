@@ -135,7 +135,6 @@ class SequentialPlannerTestContext : public ISequentialPlannerContext {
  private:
   ShapeMap* shape_map_;
 };
-static concurrency::ThreadPool::ThreadEnvironment tp_env;
 
 class PlannerTest : public ::testing::Test {
  private:

@@ -508,6 +508,13 @@ class RunQueue {
 
 template <typename Environment>
 class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
+ private:
+  static unsigned WorkerLoop(int id, Eigen::ThreadPoolInterface* param) {
+    //unsafe downcast
+    ThreadPoolTempl* this_ptr = (ThreadPoolTempl*)param;
+    this_ptr->WorkerLoop(id);
+    return 0;
+  }
  public:
   typedef typename Environment::Task Task;
   typedef RunQueue<Task, 1024> Queue;
@@ -542,7 +549,7 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
     thread_data_.resize(num_threads_);
     for (int i = 0; i < num_threads_; i++) {
       SetStealPartition(i, EncodePartition(0, num_threads_));
-      thread_data_[i].thread.reset(env_.CreateThread([this, i]() { WorkerLoop(i); }));
+      thread_data_[i].thread.reset(env_.CreateThread(i,WorkerLoop,this));
     }
   }
 

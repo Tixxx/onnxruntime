@@ -36,7 +36,6 @@ void ValidateTestData(TestData& test_data) {
 }
 
 void CreateThreadPoolAndTest(const std::string&, int num_threads,
-                             onnxruntime::concurrency::ThreadPool::ThreadEnvironment& env,
                              const std::function<void(ThreadPool*)>& test_body) {
   auto tp = onnxruntime::make_unique<ThreadPool>(&onnxruntime::Env::Default(), ThreadOptions(),"", num_threads, true);
   test_body(tp.get());
@@ -44,8 +43,7 @@ void CreateThreadPoolAndTest(const std::string&, int num_threads,
 
 void TestParallelFor(const std::string& name, int num_threads, int num_tasks) {
   auto test_data = CreateTestData(num_tasks);
-  onnxruntime::concurrency::ThreadPool::ThreadEnvironment tp_env;
-  CreateThreadPoolAndTest(name, num_threads, tp_env, [&](ThreadPool* tp) {
+  CreateThreadPoolAndTest(name, num_threads, [&](ThreadPool* tp) {
     tp->ParallelFor(num_tasks, [&](int i) { IncrementElement(*test_data, i); });
   });
   ValidateTestData(*test_data);
@@ -53,9 +51,8 @@ void TestParallelFor(const std::string& name, int num_threads, int num_tasks) {
 
 void TestBatchParallelFor(const std::string& name, int num_threads, int num_tasks, int batch_size) {
   auto test_data = CreateTestData(num_tasks);
-  onnxruntime::concurrency::ThreadPool::ThreadEnvironment tp_env;
 
-  CreateThreadPoolAndTest(name, num_threads, tp_env, [&](ThreadPool* tp) {
+  CreateThreadPoolAndTest(name, num_threads, [&](ThreadPool* tp) {
     onnxruntime::concurrency::ThreadPool::TryBatchParallelFor(
         tp,
         num_tasks, [&](int i) { IncrementElement(*test_data, i); }, batch_size);

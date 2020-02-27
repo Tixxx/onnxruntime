@@ -24,20 +24,15 @@ limitations under the License.
 #include "core/platform/env.h"
 #include "core/common/optional.h"
 
-
 #include <functional>
 #include <memory>
 
-//This file use PIMPL to avoid having eigen headers here
+// This file use PIMPL to avoid having eigen headers here
 
 namespace Eigen {
 class Allocator;
 class ThreadPoolInterface;
 struct ThreadPoolDevice;
-
-
-
-struct StlThreadEnvironment;
 }  // namespace Eigen
 
 namespace onnxruntime {
@@ -51,30 +46,6 @@ struct TensorOpCost {
 template <typename Environment>
 class ThreadPoolTempl;
 namespace concurrency {
-
-
-struct EigenEnvironment {
-  struct Task {
-    std::function<void()> f;
-  };
-
-  // EnvThread constructor must start the thread,
-  // destructor must join the thread.
-  class EnvThread {
-   public:
-    EnvThread(std::function<void()> f) : thr_(std::move(f)) {}
-    ~EnvThread() { thr_.join(); }
-    // This function is called when the threadpool is cancelled.
-    void OnCancel() {}
-
-   private:
-    std::thread thr_;
-  };
-
-  EnvThread* CreateThread(std::function<void()> f) { return new EnvThread(std::move(f)); }
-  Task CreateTask(std::function<void()> f) { return Task{std::move(f)}; }
-  void ExecuteTask(const Task& t) { t.f(); }
-};
 
 struct ThreadOptions {};
 
@@ -134,10 +105,8 @@ class BlockingCounter {
   bool notified_;
 };
 
-
 class ThreadPool {
- public:
-  using ThreadEnvironment = EigenEnvironment;
+ public:  
   // Scheduling strategies for ParallelFor. The strategy governs how the given
   // units of work are distributed among the available threads in the
   // threadpool.
@@ -201,8 +170,8 @@ class ThreadPool {
   // operations like I/O the hint should be set to false.
   //
   // REQUIRES: num_threads > 0
-  ThreadPool(Env* env, const ThreadOptions& thread_options, const std::string& name, int num_threads, bool low_latency_hint,
-             Eigen::Allocator* allocator = nullptr);
+  ThreadPool(Env* env, const ThreadOptions& thread_options, const std::string& name, int num_threads,
+             bool low_latency_hint, Eigen::Allocator* allocator = nullptr);
   // Constructs a pool for low-latency ops that contains "num_threads" threads
   // with specified "name". env->StartThread() is used to create individual
   // threads.
@@ -256,7 +225,8 @@ class ThreadPool {
                    const std::function<void(std::ptrdiff_t first, std::ptrdiff_t)>& fn);
   // Similar to ParallelFor above, but takes the specified scheduling strategy
   // into account.
-  void ParallelFor(int64_t total, const SchedulingParams& scheduling_params, const std::function<void(int64_t, int64_t)>& fn);
+  void ParallelFor(int64_t total, const SchedulingParams& scheduling_params,
+                   const std::function<void(int64_t, int64_t)>& fn);
 
   // Same as ParallelFor with Fixed Block Size scheduling strategy.
   // Deprecated. Prefer ParallelFor with a SchedulingStrategy argument.
@@ -278,7 +248,8 @@ class ThreadPool {
   // be used for small workloads. If each buffer is expensive, the buffers
   // should be stored in an array initially filled with null, and a buffer
   // should be allocated by fn the first time that the id is used.
-  void ParallelForWithWorkerId(int64_t total, int64_t cost_per_unit, const std::function<void(int64_t, int64_t, int)>& fn);
+  void ParallelForWithWorkerId(int64_t total, int64_t cost_per_unit,
+                               const std::function<void(int64_t, int64_t, int)>& fn);
 
   // Similar to ParallelForWithWorkerId above, but takes the specified
   // scheduling strategy into account.
@@ -297,9 +268,9 @@ class ThreadPool {
   // pointer points to, and should not attempt to delete.
   Eigen::ThreadPoolInterface* AsEigenThreadPool() const;
 
-  //Simple ParallelFor
-  //Directly schedule the 'total' tasks to the underlying threadpool, without
-  //cutting them by halves
+  // Simple ParallelFor
+  // Directly schedule the 'total' tasks to the underlying threadpool, without
+  // cutting them by halves
   void ParallelFor(int32_t total, std::function<void(int32_t)> fn);
   /**
   Tries to call the given function in parallel.
@@ -319,22 +290,22 @@ class ThreadPool {
         fn(i);
       }
     }
-#endif    
+#endif
   }
 
-   /**
- Tries to call the given function in parallel, with calls split into (num_batches) batches.
- **/
+  /**
+Tries to call the given function in parallel, with calls split into (num_batches) batches.
+**/
   template <typename F>
   inline static void TryBatchParallelFor(concurrency::ThreadPool* tp, int32_t total, F&& fn, int32_t num_batches = 0) {
     if (tp != nullptr) {
       if (num_batches <= 0) {
         num_batches = tp->NumThreads();
       }
-      int32_t block_size = (total + num_batches - 1) / num_batches;      
+      int32_t block_size = (total + num_batches - 1) / num_batches;
       tp->ParallelForFixedBlockSizeScheduling(total, block_size, [&](ptrdiff_t s, ptrdiff_t e) {
         for (s; s != e; ++s) fn(s);
-          });      
+      });
     } else {
 #ifdef USE_OPENMP
 #pragma omp parallel for
@@ -356,17 +327,15 @@ class ThreadPool {
   // Requires 0 < block_size <= total.
   void ParallelForFixedBlockSizeScheduling(const int64_t total, const int64_t block_size,
                                            const std::function<void(int64_t, int64_t)>& fn);
-  EigenEnvironment eigen_thread_env_;
   // underlying_threadpool_ is the user_threadpool if user_threadpool is
   // provided in the constructor. Otherwise it is the eigen_threadpool_.
   Eigen::ThreadPoolInterface* underlying_threadpool_;
   // eigen_threadpool_ is instantiated and owned by thread::ThreadPool if
   // user_threadpool is not in the constructor.
-  std::unique_ptr<ThreadPoolTempl<EigenEnvironment>> eigen_threadpool_;
+  std::unique_ptr<ThreadPoolTempl<Env>> eigen_threadpool_;
   std::unique_ptr<Eigen::ThreadPoolDevice> threadpool_device_;
   ORT_DISALLOW_COPY_AND_ASSIGNMENT(ThreadPool);
 };
 
-}  // namespace thread
-}  // namespace tensorflow
-
+}  // namespace concurrency
+}  // namespace onnxruntime

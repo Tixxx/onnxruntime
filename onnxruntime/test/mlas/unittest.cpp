@@ -2079,9 +2079,6 @@ main(
     void
     )
 {
-#if !defined(MLAS_NO_ONNXRUNTIME_THREADPOOL)
-  onnxruntime::concurrency::EigenEnvironment threadpool_env;
-#endif
     for (int i = 0; i != 2; ++i) {
 
         printf("SGEMM tests.\n");
@@ -2115,7 +2112,8 @@ main(
         printf("Done.\n");
 #if !defined(MLAS_NO_ONNXRUNTIME_THREADPOOL)
         if (threadpool != nullptr)
-          threadpool = new onnxruntime::concurrency::ThreadPool(2, true, threadpool_env, nullptr);
+          threadpool = new onnxruntime::concurrency::ThreadPool(&onnxruntime::Env::Default(), 
+              onnxruntime::concurrency::ThreadOptions(), "", 2, true, nullptr);
 #else
         break;
 #endif
