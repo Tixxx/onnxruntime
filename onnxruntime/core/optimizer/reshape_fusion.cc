@@ -28,7 +28,7 @@ Status ReshapeFusion::ApplyImpl(Graph& graph, bool& modified, int graph_level, c
       continue;
     }
 
-    if (ReshapeFusion::Fuse_Subgraph1(reshape, graph, logger) &&
+    if (ReshapeFusion::Fuse_Subgraph1(reshape, graph, logger) ||
         ReshapeFusion::Fuse_Subgraph2(reshape, graph, logger)) {
       fused_count++;
       LOGS(logger, INFO) << "Fused reshape node: " << reshape.OutputDefs()[0]->Name();
