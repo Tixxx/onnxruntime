@@ -275,10 +275,10 @@ bool ReshapeFusion::Fuse_Subgraph2(Node& reshape, Graph& graph, const logging::L
   }
   Initializer init_const{*tensor_proto, graph.ModelPath()};
   int64_t gather_index = init_const.data<int64_t>()[0];
-  const auto shape = shape_node.OutputDefs()[0]->Shape();
+  const auto shape = shape_node.InputDefs()[0]->Shape();
 
   // Something is wrong, return false and skip fusion.
-  if (gather_index > shape->dim_size() || !shape->dim(gather_index).has_dim_value())
+  if (gather_index >= shape->dim_size() || !shape->dim(gather_index).has_dim_value())
   {
     return false;
   }

@@ -979,7 +979,7 @@ TEST(GraphTransformationTests, ReshapeFusionTwoConstUnsqueezeTest) {
 
       auto initializer = onnxruntime::make_unique<Initializer>(*tensor_proto, graph.ModelPath());
       EXPECT_EQ(tensor_proto->data_type(), ONNX_NAMESPACE::TensorProto_DataType_INT64);
-      EXPECT_EQ(initializer->size(), 3);
+      EXPECT_EQ(initializer->size(), 4);
 
       const int64_t* val = initializer->data<int64_t>();
       EXPECT_EQ(val[0], 0);
@@ -1019,10 +1019,10 @@ TEST(GraphTransformationTests, ReshapeFusionFirstInputConstUnsqueezeTest) {
 
       auto initializer = onnxruntime::make_unique<Initializer>(*tensor_proto, graph.ModelPath());
       EXPECT_EQ(tensor_proto->data_type(), ONNX_NAMESPACE::TensorProto_DataType_INT64);
-      EXPECT_EQ(initializer->size(), 3);
+      EXPECT_EQ(initializer->size(), 2);
 
       const int64_t* val = initializer->data<int64_t>();
-      EXPECT_EQ(val[0], 128);
+      EXPECT_EQ(val[0], -1);
       EXPECT_EQ(val[1], 768);
     }
   }
